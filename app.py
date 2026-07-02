@@ -11,7 +11,6 @@ from datetime import datetime
 app = Flask(__name__)
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
 
-# 全局进度队列
 progress_queues = {}
 
 HTML = """
@@ -33,7 +32,6 @@ HTML = """
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 13px; height: 100vh; display: flex; flex-direction: column; }
 
-  /* Header */
   .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
   .logo { display: flex; align-items: center; gap: 8px; }
   .logo-mark { width: 26px; height: 26px; background: var(--accent); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
@@ -41,35 +39,29 @@ HTML = """
   .stat-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--text2); }
   .stat-pill strong { color: var(--accent); }
 
-  /* Tabs */
-  .tabs { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; gap: 0; flex-shrink: 0; }
+  .tabs { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; flex-shrink: 0; }
   .tab { padding: 12px 16px; font-size: 12px; font-weight: 500; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; user-select: none; }
   .tab:hover { color: var(--text2); }
   .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-  /* Tab content */
   .tab-content { display: none; flex: 1; overflow: hidden; }
   .tab-content.active { display: flex; }
 
-  /* ===== TAB 1: PROCESS ===== */
+  /* TAB 1 */
   .process-layout { display: grid; grid-template-columns: 1fr 340px; width: 100%; }
-
   .file-panel { padding: 20px 24px; overflow-y: auto; border-right: 1px solid var(--border); }
   .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .section-title { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 1.2px; }
-
   .folder-input-row { display: flex; gap: 8px; margin-bottom: 16px; }
   .folder-input-row input { flex: 1; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 6px; font-size: 12px; outline: none; font-family: inherit; }
   .folder-input-row input:focus { border-color: var(--accent); }
   .btn-scan { padding: 8px 14px; background: var(--accent); border: none; color: white; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; white-space: nowrap; }
   .btn-scan:hover { background: #7A3A0F; }
-
   .file-list { display: flex; flex-direction: column; gap: 4px; }
   .file-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; transition: all 0.12s; cursor: pointer; }
   .file-item:hover { border-color: #C17D52; }
   .file-item.selected { background: #FDF5EF; border-color: #C17D52; }
   .file-item.done { border-color: #B7DFC9; background: var(--green-light); cursor: default; }
-  .file-item.processing { border-color: var(--accent); background: var(--accent-light); cursor: default; }
   .file-cb { width: 16px; height: 16px; border: 1.5px solid var(--border); border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: white; transition: all 0.12s; }
   .file-item.selected .file-cb { background: var(--accent); border-color: var(--accent); }
   .file-item.selected .file-cb::after { content: '✓'; font-size: 9px; color: white; font-weight: 700; }
@@ -81,34 +73,27 @@ HTML = """
   .file-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; flex-shrink: 0; font-weight: 500; }
   .badge-done { background: var(--green-light); color: var(--green); }
   .badge-new { background: var(--surface2); color: var(--text3); }
-  .badge-processing { background: var(--accent-light); color: var(--accent); }
-
   .process-sidebar { background: var(--surface); padding: 20px 18px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
   .output-info { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--text2); line-height: 1.6; }
   .output-info strong { color: var(--text); display: block; margin-bottom: 4px; }
-
   .btn-start { width: 100%; padding: 12px; background: var(--accent); border: none; color: white; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
   .btn-start:hover:not(:disabled) { background: #7A3A0F; }
   .btn-start:disabled { opacity: 0.4; cursor: not-allowed; }
-
   .log-box { background: #1A1612; border-radius: 8px; padding: 12px; flex: 1; overflow-y: auto; min-height: 200px; max-height: 380px; font-family: 'SF Mono', monospace; font-size: 11px; line-height: 1.7; }
   .log-line { color: #A09890; }
   .log-line.info { color: #E2DDD8; }
   .log-line.success { color: #4ADE80; }
   .log-line.error { color: #F87171; }
   .log-line.step { color: #C17D52; font-weight: 600; }
-
   .progress-bar-wrap { background: var(--surface2); border-radius: 4px; height: 6px; overflow: hidden; }
   .progress-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s; width: 0%; }
 
-  /* ===== TAB 2: CLIP ===== */
+  /* TAB 2 */
   .clip-layout { display: grid; grid-template-columns: 1fr 320px; width: 100%; }
-
   .transcript-panel { overflow-y: auto; padding: 20px 24px; }
   .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
   .btn-text { font-size: 11px; color: var(--accent); background: none; border: none; cursor: pointer; }
   .btn-text:hover { text-decoration: underline; }
-
   .line-group { border: 1px solid transparent; border-radius: 8px; margin-bottom: 3px; cursor: pointer; transition: all 0.12s; }
   .line-group:hover { background: var(--surface); border-color: var(--border); }
   .line-group.selected { background: #FDF5EF; border-color: #C17D52; }
@@ -130,7 +115,6 @@ HTML = """
   .clip-sidebar { background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
   .sb-sec { padding: 14px 16px; border-bottom: 1px solid var(--border); }
   .sb-title { font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 8px; }
-
   .video-display { font-size: 12px; color: var(--text2); background: var(--surface2); padding: 6px 10px; border-radius: 6px; margin-bottom: 6px; word-break: break-all; min-height: 28px; }
   .video-display.matched { color: var(--green); background: var(--green-light); }
   .video-display.unmatched { color: var(--red); background: var(--red-light); }
@@ -138,7 +122,6 @@ HTML = """
   .inp:focus { border-color: var(--accent); }
   .btn-sm { width: 100%; margin-top: 6px; padding: 7px; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.12s; }
   .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
-
   .project-group { margin-bottom: 8px; }
   .project-label { font-size: 10px; color: var(--text3); font-weight: 600; padding: 2px 4px; margin-bottom: 3px; }
   .report-list { display: flex; flex-direction: column; gap: 2px; max-height: 130px; overflow-y: auto; }
@@ -146,7 +129,6 @@ HTML = """
   .report-item:hover { background: var(--surface2); }
   .report-item.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); font-weight: 500; }
   .report-item.disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
-
   .sb-selected { padding: 14px 16px; flex: 1; overflow-y: auto; border-bottom: 1px solid var(--border); }
   .count-display { font-size: 24px; font-weight: 600; color: var(--accent); margin-bottom: 8px; letter-spacing: -1px; }
   .count-display span { font-size: 12px; color: var(--text3); font-weight: 400; }
@@ -158,10 +140,12 @@ HTML = """
   .chip-zh { font-size: 10px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; margin-top: 1px; }
   .chip-rm { color: var(--text3); cursor: pointer; font-size: 15px; flex-shrink: 0; }
   .chip-rm:hover { color: var(--red); }
-
   .sb-export { padding: 14px 16px; }
-  .btn-export { width: 100%; padding: 11px; background: var(--accent); border: none; color: white; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .export-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .btn-export { width: 100%; padding: 10px; background: var(--accent); border: none; color: white; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
   .btn-export:hover:not(:disabled) { background: #7A3A0F; }
+  .btn-export.secondary { background: var(--surface2); color: var(--accent); border: 1px solid var(--accent); }
+  .btn-export.secondary:hover:not(:disabled) { background: var(--accent-light); }
   .btn-export:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-clear { width: 100%; margin-top: 6px; padding: 7px; background: none; border: 1px solid var(--border); color: var(--text3); border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.12s; }
   .btn-clear:hover { border-color: var(--red); color: var(--red); }
@@ -169,7 +153,6 @@ HTML = """
   .status.success { background: var(--green-light); color: var(--green); display: block; }
   .status.error { background: var(--red-light); color: var(--red); display: block; }
   .status.loading { background: var(--accent-light); color: var(--accent); display: block; }
-
   .empty-state { color: var(--text3); font-size: 12px; text-align: center; padding: 32px 16px; line-height: 1.8; }
 </style>
 </head>
@@ -188,7 +171,6 @@ HTML = """
   <div class="tab" onclick="switchTab('clip')">② 选取片段</div>
 </div>
 
-<!-- TAB 1: 处理视频 -->
 <div class="tab-content active" id="tab-process">
   <div class="process-layout">
     <div class="file-panel">
@@ -204,17 +186,15 @@ HTML = """
         <div class="empty-state">粘贴文件夹路径后点击扫描</div>
       </div>
     </div>
-
     <div class="process-sidebar">
       <div>
         <div class="section-title" style="margin-bottom:8px">输出位置</div>
         <div class="output-info">
           <strong id="outputDirDisplay">今日项目文件夹</strong>
           自动生成于：<br>
-          <span style="color:var(--accent);font-family:monospace;font-size:11px" id="outputDirPath">video-tool/outputs/今日日期_Project/</span>
+          <span style="color:var(--accent);font-family:monospace;font-size:11px" id="outputDirPath">outputs/今日日期_Project/</span>
         </div>
       </div>
-
       <div>
         <div class="section-title" style="margin-bottom:8px">处理进度</div>
         <div class="progress-bar-wrap" style="margin-bottom:8px">
@@ -223,13 +203,11 @@ HTML = """
         <div style="font-size:11px;color:var(--text3);margin-bottom:8px" id="progressText">等待开始</div>
         <div class="log-box" id="logBox"></div>
       </div>
-
       <button class="btn-start" id="startBtn" onclick="startProcess()">开始处理选中视频</button>
     </div>
   </div>
 </div>
 
-<!-- TAB 2: 选取片段 -->
 <div class="tab-content" id="tab-clip">
   <div class="clip-layout">
     <div class="transcript-panel">
@@ -262,7 +240,10 @@ HTML = """
       </div>
 
       <div class="sb-export">
-        <button class="btn-export" id="exportBtn" onclick="exportAudio()">导出音频片段</button>
+        <div class="export-btns">
+          <button class="btn-export" id="exportAudioBtn" onclick="doExport('audio')">🎵 导出音频</button>
+          <button class="btn-export secondary" id="exportVideoBtn" onclick="doExport('video')">🎬 导出视频</button>
+        </div>
         <button class="btn-clear" onclick="clearAll()">清空选择</button>
         <div class="status" id="clipStatus"></div>
       </div>
@@ -271,7 +252,6 @@ HTML = """
 </div>
 
 <script>
-// ===== TAB SWITCH =====
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&name==='process')||(i===1&&name==='clip')));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -279,12 +259,7 @@ function switchTab(name) {
   if (name === 'clip') loadReports();
 }
 
-// ===== TAB 1: PROCESS =====
-let scannedFiles = [];
-let selectedFiles = new Set();
-let processing = false;
-let jobId = null;
-let eventSource = null;
+let scannedFiles = [], selectedFiles = new Set(), processing = false, eventSource = null;
 
 async function scanFolder() {
   const folder = document.getElementById('folderInput').value.trim();
@@ -300,18 +275,14 @@ async function scanFolder() {
 
 function updateOutputPath() {
   const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
-  document.getElementById('outputDirPath').textContent = `video-tool/outputs/${today}_Project/`;
+  document.getElementById('outputDirPath').textContent = `outputs/${today}_Project/`;
 }
 
 function renderFileList() {
   const container = document.getElementById('fileList');
-  if (!scannedFiles.length) {
-    container.innerHTML = '<div class="empty-state">文件夹里没有找到视频文件</div>';
-    return;
-  }
+  if (!scannedFiles.length) { container.innerHTML = '<div class="empty-state">文件夹里没有找到视频文件</div>'; return; }
   container.innerHTML = scannedFiles.map((f, idx) => {
-    const done = f.has_report;
-    const sel = selectedFiles.has(idx) && !done;
+    const done = f.has_report, sel = selectedFiles.has(idx) && !done;
     return `<div class="file-item ${done?'done':sel?'selected':''}" onclick="${done?'':('toggleFile('+idx+')')}" id="file-${idx}">
       <div class="file-cb"></div>
       <div class="file-info">
@@ -325,13 +296,12 @@ function renderFileList() {
 
 function toggleFile(idx) {
   if (scannedFiles[idx].has_report) return;
-  if (selectedFiles.has(idx)) selectedFiles.delete(idx);
-  else selectedFiles.add(idx);
+  if (selectedFiles.has(idx)) selectedFiles.delete(idx); else selectedFiles.add(idx);
   renderFileList();
 }
 
 function toggleSelectAll() {
-  const unprocessed = scannedFiles.map((f,i) => i).filter(i => !scannedFiles[i].has_report);
+  const unprocessed = scannedFiles.map((f,i)=>i).filter(i=>!scannedFiles[i].has_report);
   if (selectedFiles.size === unprocessed.length) selectedFiles.clear();
   else unprocessed.forEach(i => selectedFiles.add(i));
   renderFileList();
@@ -341,8 +311,8 @@ function addLog(msg, type='info') {
   const box = document.getElementById('logBox');
   const line = document.createElement('div');
   line.className = 'log-line ' + type;
-  const time = new Date().toLocaleTimeString('zh', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  line.textContent = `[${time}] ${msg}`;
+  const t = new Date().toLocaleTimeString('zh', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  line.textContent = `[${t}] ${msg}`;
   box.appendChild(line);
   box.scrollTop = box.scrollHeight;
 }
@@ -353,60 +323,24 @@ async function startProcess() {
   processing = true;
   document.getElementById('startBtn').disabled = true;
   document.getElementById('logBox').innerHTML = '';
-
   const files = [...selectedFiles].map(i => scannedFiles[i].path);
-  const res = await fetch('/api/process', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ files })
-  });
+  const res = await fetch('/api/process', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({files}) });
   const data = await res.json();
-  if (!data.success) { addLog('启动失败: ' + data.error, 'error'); processing = false; document.getElementById('startBtn').disabled = false; return; }
-
-  jobId = data.job_id;
+  if (!data.success) { addLog('启动失败: '+data.error,'error'); processing=false; document.getElementById('startBtn').disabled=false; return; }
   addLog(`开始处理 ${files.length} 个视频`, 'step');
-
-  // SSE 实时日志
-  eventSource = new EventSource('/api/progress/' + jobId);
+  eventSource = new EventSource('/api/progress/' + data.job_id);
   eventSource.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-    if (msg.type === 'log') {
-      addLog(msg.text, msg.level || 'info');
-    } else if (msg.type === 'progress') {
-      document.getElementById('progressBar').style.width = msg.pct + '%';
-      document.getElementById('progressText').textContent = msg.text;
-    } else if (msg.type === 'file_done') {
-      const idx = scannedFiles.findIndex(f => f.path === msg.path);
-      if (idx >= 0) { scannedFiles[idx].has_report = true; renderFileList(); }
-    } else if (msg.type === 'done') {
-      addLog('🎉 全部完成！', 'success');
-      document.getElementById('progressBar').style.width = '100%';
-      document.getElementById('progressText').textContent = '完成';
-      eventSource.close();
-      processing = false;
-      document.getElementById('startBtn').disabled = false;
-      selectedFiles.clear();
-      renderFileList();
-      loadReports();
-    } else if (msg.type === 'error') {
-      addLog('错误: ' + msg.text, 'error');
-    }
+    if (msg.type==='log') addLog(msg.text, msg.level||'info');
+    else if (msg.type==='progress') { document.getElementById('progressBar').style.width=msg.pct+'%'; document.getElementById('progressText').textContent=msg.text; }
+    else if (msg.type==='file_done') { const idx=scannedFiles.findIndex(f=>f.path===msg.path); if(idx>=0){scannedFiles[idx].has_report=true;renderFileList();} }
+    else if (msg.type==='done') { addLog('🎉 全部完成！','success'); document.getElementById('progressBar').style.width='100%'; document.getElementById('progressText').textContent='完成'; eventSource.close(); processing=false; document.getElementById('startBtn').disabled=false; selectedFiles.clear(); renderFileList(); loadReports(); }
+    else if (msg.type==='error') addLog('错误: '+msg.text,'error');
   };
-  eventSource.onerror = () => {
-    eventSource.close();
-    processing = false;
-    document.getElementById('startBtn').disabled = false;
-  };
+  eventSource.onerror = () => { eventSource.close(); processing=false; document.getElementById('startBtn').disabled=false; };
 }
 
-// ===== TAB 2: CLIP =====
-let transcriptData = [];
-let selectedLines = new Set();
-let videoPath = '';
-let videoBasename = '';
-let currentReport = '';
-let currentReportPath = '';
-let allReports = [];
+let transcriptData=[], selectedLines=new Set(), videoPath='', videoBasename='', currentReport='', currentReportPath='', allReports=[];
 
 async function loadReports() {
   const res = await fetch('/api/reports');
@@ -416,7 +350,7 @@ async function loadReports() {
 
 function renderReports() {
   const container = document.getElementById('reportList');
-  if (!allReports.length) { container.innerHTML = '<div class="empty-state" style="padding:8px">没有找到报告</div>'; return; }
+  if (!allReports.length) { container.innerHTML='<div class="empty-state" style="padding:8px">没有找到报告</div>'; return; }
   const groups = {};
   allReports.forEach(r => { if (!groups[r.folder]) groups[r.folder]=[]; groups[r.folder].push(r); });
   container.innerHTML = Object.entries(groups).map(([folder, reports]) =>
@@ -425,8 +359,8 @@ function renderReports() {
       ${reports.map(r => {
         const matched = videoBasename && r.name.startsWith(videoBasename);
         const unmatched = videoBasename && !matched;
-        const active = currentReportPath === r.path ? ' active' : '';
-        const disabled = unmatched ? ' disabled' : '';
+        const active = currentReportPath===r.path?' active':'';
+        const disabled = unmatched?' disabled':'';
         return `<div class="report-item${active}${disabled}" onclick="loadReport('${r.path}','${r.name}')">${r.name.replace('_分析报告.txt','')}</div>`;
       }).join('')}
     </div>`
@@ -434,22 +368,22 @@ function renderReports() {
 }
 
 async function loadReport(path, name) {
-  currentReport = name; currentReportPath = path;
+  currentReport=name; currentReportPath=path;
   renderReports();
-  const res = await fetch('/api/transcript?path=' + encodeURIComponent(path));
+  const res = await fetch('/api/transcript?path='+encodeURIComponent(path));
   transcriptData = await res.json();
   selectedLines.clear();
   renderTranscript();
   updateSidebar();
 }
 
-function getSpeakerNum(s) { const m = s.match(/SPEAKER_(\d+)/); return m ? parseInt(m[1])%3 : 0; }
+function getSpeakerNum(s) { const m=s.match(/SPEAKER_(\d+)/); return m?parseInt(m[1])%3:0; }
 
 function renderTranscript() {
   const container = document.getElementById('transcriptList');
-  if (!transcriptData.length) { container.innerHTML = '<div class="empty-state">没有找到对话内容</div>'; return; }
+  if (!transcriptData.length) { container.innerHTML='<div class="empty-state">没有找到对话内容</div>'; return; }
   container.innerHTML = transcriptData.map((item, idx) => {
-    const sel = selectedLines.has(idx) ? ' selected' : '';
+    const sel = selectedLines.has(idx)?' selected':'';
     const sn = getSpeakerNum(item.speaker);
     const spLabel = item.speaker.replace('[SPEAKER_','说话人').replace(']','');
     return `<div class="line-group${sel}" onclick="toggleLine(${idx},this)">
@@ -458,7 +392,7 @@ function renderTranscript() {
         <div class="line-meta"><span class="spk spk-${sn}">${spLabel}</span><span class="ts">${item.timestamp}</span></div>
         <div class="text-en">${item.text_en}</div>
       </div>
-      ${item.text_zh ? `<div class="line-zh"><div class="text-zh">${item.text_zh}</div></div>` : ''}
+      ${item.text_zh?`<div class="line-zh"><div class="text-zh">${item.text_zh}</div></div>`:''}
     </div>`;
   }).join('');
 }
@@ -469,7 +403,7 @@ function toggleLine(idx, el) {
   updateSidebar();
 }
 
-function selectAll() { transcriptData.forEach((_,i) => selectedLines.add(i)); renderTranscript(); updateSidebar(); }
+function selectAll() { transcriptData.forEach((_,i)=>selectedLines.add(i)); renderTranscript(); updateSidebar(); }
 
 function updateSidebar() {
   const sorted = [...selectedLines].sort((a,b)=>a-b);
@@ -481,7 +415,7 @@ function updateSidebar() {
       <div class="chip-ts">${item.timestamp}</div>
       <div class="chip-body">
         <div class="chip-en">${item.text_en}</div>
-        ${item.text_zh ? `<div class="chip-zh">${item.text_zh}</div>` : ''}
+        ${item.text_zh?`<div class="chip-zh">${item.text_zh}</div>`:''}
       </div>
       <div class="chip-rm" onclick="removeLine(${idx},event)">×</div>
     </div>`;
@@ -514,27 +448,29 @@ function setVideo() {
   renderReports();
 }
 
-async function exportAudio() {
+async function doExport(mode) {
   if (selectedLines.size === 0) { showClipStatus('请先选择至少一个片段','error'); return; }
   if (!videoPath) { showClipStatus('请先设置视频文件路径','error'); return; }
   if (currentReport && !currentReport.startsWith(videoBasename)) { showClipStatus('⚠ 报告与视频不匹配','error'); return; }
   const sorted = [...selectedLines].sort((a,b)=>a-b);
   const segments = sorted.map(idx => transcriptData[idx]);
-  showClipStatus('⏳ 正在分段导出音频...','loading');
-  document.getElementById('exportBtn').disabled = true;
+  showClipStatus(mode==='audio'?'⏳ 正在导出音频...':'⏳ 正在导出视频...', 'loading');
+  document.getElementById('exportAudioBtn').disabled = true;
+  document.getElementById('exportVideoBtn').disabled = true;
   const res = await fetch('/api/export', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ video_path: videoPath, segments, report_path: currentReportPath })
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ video_path: videoPath, segments, report_path: currentReportPath, mode })
   });
   const data = await res.json();
-  document.getElementById('exportBtn').disabled = false;
-  if (data.success) showClipStatus(`✓ 导出完成\n共 ${data.count} 个文件`, 'success');
+  document.getElementById('exportAudioBtn').disabled = false;
+  document.getElementById('exportVideoBtn').disabled = false;
+  if (data.success) showClipStatus(`✓ 导出完成\n共 ${data.count} 个${mode==='audio'?'音频':'视频'}文件`, 'success');
   else showClipStatus('✕ ' + data.error, 'error');
 }
 
 function showClipStatus(msg, type) {
   const el = document.getElementById('clipStatus');
-  el.className = 'status ' + type; el.textContent = msg;
+  el.className = 'status '+type; el.textContent = msg;
 }
 
 updateOutputPath();
@@ -542,8 +478,6 @@ updateOutputPath();
 </body>
 </html>
 """
-
-# ===== BACKEND =====
 
 def get_file_size(path):
     size = os.path.getsize(path)
@@ -559,6 +493,7 @@ def get_project_dir():
 
 def has_report(video_path):
     name = os.path.splitext(os.path.basename(video_path))[0]
+    if not os.path.exists(OUTPUT_DIR): return False
     for folder in os.listdir(OUTPUT_DIR):
         folder_path = os.path.join(OUTPUT_DIR, folder)
         if os.path.isdir(folder_path):
@@ -607,97 +542,70 @@ def sanitize_filename(name):
 def run_process(job_id, files, q):
     total = len(files)
     project_dir = get_project_dir()
-
     for idx, video_path in enumerate(files):
         name = os.path.splitext(os.path.basename(video_path))[0]
         pct_base = int(idx / total * 100)
-
-        q.put({"type": "progress", "pct": pct_base, "text": f"[{idx+1}/{total}] 处理：{os.path.basename(video_path)}"})
-        q.put({"type": "log", "text": f"▶ 开始处理：{os.path.basename(video_path)}", "level": "step"})
-
-        # 转录
-        q.put({"type": "log", "text": "📝 转录中（这一步较慢，请耐心等待）...", "level": "info"})
-        result = subprocess.run([
-            "python3.11", "-m", "whisperx", video_path,
-            "--language", "en", "--diarize",
-            "--output_dir", project_dir
-        ], capture_output=True, text=True)
-
+        q.put({"type":"progress","pct":pct_base,"text":f"[{idx+1}/{total}] 处理：{os.path.basename(video_path)}"})
+        q.put({"type":"log","text":f"▶ 开始处理：{os.path.basename(video_path)}","level":"step"})
+        q.put({"type":"log","text":"📝 转录中（这一步较慢，请耐心等待）...","level":"info"})
+        subprocess.run(["python3.11","-m","whisperx",video_path,"--language","en","--diarize","--output_dir",project_dir], capture_output=True, text=True)
         txt_path = os.path.join(project_dir, f"{name}.txt")
         if not os.path.exists(txt_path):
-            q.put({"type": "log", "text": f"❌ 转录失败：{name}", "level": "error"})
-            continue
-
-        q.put({"type": "log", "text": "✅ 转录完成", "level": "success"})
-        q.put({"type": "progress", "pct": pct_base + int(1/total*70), "text": f"[{idx+1}/{total}] AI分析中..."})
-
-        # AI分析
-        q.put({"type": "log", "text": "🤖 AI分析中...", "level": "info"})
-        ai_result = subprocess.run([
-            "python3.11", os.path.join(os.path.dirname(os.path.abspath(__file__)), "analyze.py"),
-            txt_path, project_dir
-        ], capture_output=True, text=True)
-
+            q.put({"type":"log","text":f"❌ 转录失败：{name}","level":"error"}); continue
+        q.put({"type":"log","text":"✅ 转录完成","level":"success"})
+        q.put({"type":"progress","pct":pct_base+int(1/total*70),"text":f"[{idx+1}/{total}] AI分析中..."})
+        q.put({"type":"log","text":"🤖 AI分析中...","level":"info"})
+        ai_result = subprocess.run(["python3.11",os.path.join(os.path.dirname(os.path.abspath(__file__)),"analyze.py"),txt_path,project_dir], capture_output=True, text=True)
         report_path = os.path.join(project_dir, f"{name}_分析报告.txt")
         if os.path.exists(report_path):
-            q.put({"type": "log", "text": f"✅ 分析完成：{name}_分析报告.txt", "level": "success"})
-            q.put({"type": "file_done", "path": video_path})
+            q.put({"type":"log","text":f"✅ 分析完成：{name}_分析报告.txt","level":"success"})
+            q.put({"type":"file_done","path":video_path})
         else:
-            q.put({"type": "log", "text": f"❌ AI分析失败：{ai_result.stderr[-200:] if ai_result.stderr else '未知错误'}", "level": "error"})
-
-        q.put({"type": "progress", "pct": int((idx+1)/total*100), "text": f"完成 {idx+1}/{total}"})
-
-    q.put({"type": "done"})
+            q.put({"type":"log","text":f"❌ AI分析失败：{ai_result.stderr[-200:] if ai_result.stderr else '未知错误'}","level":"error"})
+        q.put({"type":"progress","pct":int((idx+1)/total*100),"text":f"完成 {idx+1}/{total}"})
+    q.put({"type":"done"})
 
 @app.route("/")
 def index(): return render_template_string(HTML)
 
 @app.route("/api/scan")
 def scan_folder():
-    folder = request.args.get("folder", "").strip()
+    folder = request.args.get("folder","").strip()
     if not folder or not os.path.isdir(folder):
-        return jsonify({"success": False, "error": "文件夹不存在"})
+        return jsonify({"success":False,"error":"文件夹不存在"})
     files = []
+    supported = ('.mov','.mp4','.MP4','.MOV','.mp3','.m4a','.wav','.aac','.flac')
     for f in sorted(os.listdir(folder)):
-        if f.lower().endswith(('.mov', '.mp4', '.mp4')):
+        if f.lower().endswith(supported):
             path = os.path.join(folder, f)
-            files.append({
-                "name": f,
-                "path": path,
-                "size": get_file_size(path),
-                "has_report": has_report(path)
-            })
-    return jsonify({"success": True, "files": files})
+            files.append({"name":f,"path":path,"size":get_file_size(path),"has_report":has_report(path)})
+    return jsonify({"success":True,"files":files})
 
 @app.route("/api/process", methods=["POST"])
 def process_videos():
     data = request.json
-    files = data.get("files", [])
-    if not files: return jsonify({"success": False, "error": "没有选择文件"})
+    files = data.get("files",[])
+    if not files: return jsonify({"success":False,"error":"没有选择文件"})
     job_id = str(int(time.time()))
     q = queue.Queue()
     progress_queues[job_id] = q
-    t = threading.Thread(target=run_process, args=(job_id, files, q), daemon=True)
-    t.start()
-    return jsonify({"success": True, "job_id": job_id})
+    threading.Thread(target=run_process, args=(job_id,files,q), daemon=True).start()
+    return jsonify({"success":True,"job_id":job_id})
 
 @app.route("/api/progress/<job_id>")
 def get_progress(job_id):
     def stream():
         q = progress_queues.get(job_id)
         if not q:
-            yield f"data: {json.dumps({'type':'error','text':'任务不存在'})}\n\n"
-            return
+            yield f"data: {json.dumps({'type':'error','text':'任务不存在'})}\n\n"; return
         while True:
             try:
                 msg = q.get(timeout=30)
                 yield f"data: {json.dumps(msg, ensure_ascii=False)}\n\n"
-                if msg.get("type") == "done":
-                    break
+                if msg.get("type") == "done": break
             except queue.Empty:
                 yield f"data: {json.dumps({'type':'ping'})}\n\n"
-    return Response(stream(), mimetype="text/event-stream",
-                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+    return Response(stream(), mimetype="text/event-stream", headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
 
 @app.route("/api/reports")
 def get_reports():
@@ -708,42 +616,61 @@ def get_reports():
         if os.path.isdir(folder_path):
             for f in sorted(os.listdir(folder_path)):
                 if f.endswith("_分析报告.txt"):
-                    reports.append({"folder": folder, "name": f, "path": os.path.join(folder_path, f)})
+                    reports.append({"folder":folder,"name":f,"path":os.path.join(folder_path,f)})
         elif folder.endswith("_分析报告.txt"):
-            reports.append({"folder": "旧文件", "name": folder, "path": os.path.join(OUTPUT_DIR, folder)})
+            reports.append({"folder":"旧文件","name":folder,"path":os.path.join(OUTPUT_DIR,folder)})
     return jsonify(reports)
 
 @app.route("/api/transcript")
 def get_transcript():
-    path = request.args.get("path", "")
+    path = request.args.get("path","")
     return jsonify(parse_report(path) if path else [])
 
 @app.route("/api/export", methods=["POST"])
-def export_audio():
+def export_clips():
     data = request.json
-    video_path = data.get("video_path", "")
-    segments = data.get("segments", [])
-    report_path = data.get("report_path", "")
-    if not segments: return jsonify({"success": False, "error": "没有选择片段"})
-    if not os.path.exists(video_path): return jsonify({"success": False, "error": f"找不到视频: {video_path}"})
+    video_path = data.get("video_path","")
+    segments = data.get("segments",[])
+    report_path = data.get("report_path","")
+    mode = data.get("mode","audio")  # "audio" or "video"
+
+    if not segments: return jsonify({"success":False,"error":"没有选择片段"})
+    if not os.path.exists(video_path): return jsonify({"success":False,"error":f"找不到文件: {video_path}"})
+
     out_dir = os.path.dirname(report_path) if report_path else OUTPUT_DIR
     os.makedirs(out_dir, exist_ok=True)
+
     try:
         exported = 0
         for i, seg in enumerate(segments):
             start = time_to_seconds(seg["timestamp"])
+            duration = 8
             name_source = seg.get("text_zh") or seg.get("text_en", f"片段{i+1}")
-            filename = f"{i+1:02d}_{sanitize_filename(name_source)}.mp3"
-            result = subprocess.run([
-                "ffmpeg", "-y", "-i", video_path,
-                "-ss", str(max(0, start)), "-t", "8",
-                "-vn", "-acodec", "mp3", "-ab", "192k",
-                os.path.join(out_dir, filename)
-            ], capture_output=True)
+            base_name = f"{i+1:02d}_{sanitize_filename(name_source)}"
+
+            if mode == "audio":
+                output_file = os.path.join(out_dir, f"{base_name}.mp3")
+                result = subprocess.run([
+                    "ffmpeg", "-y", "-i", video_path,
+                    "-ss", str(max(0, start)), "-t", str(duration),
+                    "-vn", "-acodec", "mp3", "-ab", "192k",
+                    output_file
+                ], capture_output=True)
+            else:
+                output_file = os.path.join(out_dir, f"{base_name}.mp4")
+                result = subprocess.run([
+                    "ffmpeg", "-y", "-i", video_path,
+                    "-ss", str(max(0, start)), "-t", str(duration),
+                    "-c:v", "libx264", "-c:a", "aac",
+                    "-movflags", "+faststart",
+                    output_file
+                ], capture_output=True)
+
             if result.returncode == 0: exported += 1
-        return jsonify({"success": True, "count": exported, "output_dir": out_dir})
+
+        return jsonify({"success":True,"count":exported,"output_dir":out_dir})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        return jsonify({"success":False,"error":str(e)})
 
 if __name__ == "__main__":
     os.makedirs(OUTPUT_DIR, exist_ok=True)
